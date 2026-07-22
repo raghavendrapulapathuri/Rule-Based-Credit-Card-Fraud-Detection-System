@@ -1,6 +1,7 @@
 package com.raghavendra.fraud_detection.service;
 
 import com.raghavendra.fraud_detection.entity.Transaction;
+import com.raghavendra.fraud_detection.exception.ResourceNotFoundException;
 import com.raghavendra.fraud_detection.repository.TransactionRepository;
 import com.raghavendra.fraud_detection.rules.BlacklistedMerchantRule;
 import com.raghavendra.fraud_detection.rules.HighAmountRule;
@@ -70,7 +71,56 @@ public class TransactionService {
         return savedTransaction;
     }
 
+    // Get all transactions
     public List<Transaction> getAllTransactions() {
         return transactionRepository.findAll();
+    }
+
+    // Search by Status
+    public List<Transaction> getTransactionsByStatus(String status) {
+
+        List<Transaction> transactions = transactionRepository.findByStatus(status);
+
+        if (transactions.isEmpty()) {
+            throw new ResourceNotFoundException("No transactions found with status: " + status);
+        }
+
+        return transactions;
+    }
+
+    // Search by Merchant
+    public List<Transaction> getTransactionsByMerchant(String merchant) {
+
+        List<Transaction> transactions = transactionRepository.findByMerchant(merchant);
+
+        if (transactions.isEmpty()) {
+            throw new ResourceNotFoundException("No transactions found for merchant: " + merchant);
+        }
+
+        return transactions;
+    }
+
+    // Search by Location
+    public List<Transaction> getTransactionsByLocation(String location) {
+
+        List<Transaction> transactions = transactionRepository.findByLocation(location);
+
+        if (transactions.isEmpty()) {
+            throw new ResourceNotFoundException("No transactions found for location: " + location);
+        }
+
+        return transactions;
+    }
+
+    // Get Fraud Transactions
+    public List<Transaction> getFraudTransactions() {
+
+        List<Transaction> transactions = transactionRepository.findByStatus("FRAUD");
+
+        if (transactions.isEmpty()) {
+            throw new ResourceNotFoundException("No fraud transactions found.");
+        }
+
+        return transactions;
     }
 }

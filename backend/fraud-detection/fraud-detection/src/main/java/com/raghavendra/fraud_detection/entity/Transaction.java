@@ -2,6 +2,10 @@ package com.raghavendra.fraud_detection.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -12,22 +16,26 @@ public class Transaction {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotNull(message = "Amount is required")
+    @Positive(message = "Amount must be greater than 0")
     private Double amount;
 
+    @NotBlank(message = "Merchant name is required")
     private String merchant;
 
+    @NotBlank(message = "Location is required")
     private String location;
 
     private LocalDateTime transactionTime;
 
     private String status;
 
-    // NEW FIELD
     private Integer fraudScore;
 
     @ManyToOne
     @JoinColumn(name = "card_id")
     @JsonBackReference
+    @NotNull(message = "Card is required")
     private Card card;
 
     public Transaction() {
