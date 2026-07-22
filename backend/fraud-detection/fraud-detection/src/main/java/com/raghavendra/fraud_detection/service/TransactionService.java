@@ -34,6 +34,9 @@ public class TransactionService {
     @Autowired
     private MultipleTransactionRule multipleTransactionRule;
 
+    @Autowired
+    private FraudAlertService fraudAlertService;
+
     public Transaction saveTransaction(Transaction transaction) {
 
         if (transaction.getTransactionTime() == null) {
@@ -58,7 +61,13 @@ public class TransactionService {
             transaction.setStatus("SAFE");
         }
 
-        return transactionRepository.save(transaction);
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        if (!"SAFE".equals(savedTransaction.getStatus())) {
+            fraudAlertService.createAlert(savedTransaction);
+        }
+
+        return savedTransaction;
     }
 
     public List<Transaction> getAllTransactions() {
