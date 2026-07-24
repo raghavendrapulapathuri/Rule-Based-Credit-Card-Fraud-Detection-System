@@ -1,7 +1,8 @@
 package com.raghavendra.fraud_detection.entity;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+
 import java.util.List;
 
 @Entity
@@ -25,7 +26,7 @@ public class Card {
     private User user;
 
     @OneToMany(mappedBy = "card")
-    @JsonManagedReference
+    @JsonIgnore
     private List<Transaction> transactions;
 
     public Card() {

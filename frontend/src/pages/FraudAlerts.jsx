@@ -1,35 +1,51 @@
 import { useEffect, useState } from "react";
 import api from "../services/api";
 
-function Cards() {
-  const [cards, setCards] = useState([]);
+function FraudAlerts() {
+  const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api
-      .get("/cards")
+      .get("/alerts")
       .then((response) => {
-        console.log("Cards API Response:", response.data);
+        console.log("Fraud Alerts API Response:", response.data);
 
-        // Check whether backend returned an array
         if (Array.isArray(response.data)) {
-          setCards(response.data);
+          setAlerts(response.data);
         } else {
-          console.error(
-            "Cards API did not return an array:",
-            response.data
-          );
-          setCards([]);
+          setAlerts([]);
         }
 
         setLoading(false);
       })
       .catch((error) => {
-        console.error("Error fetching cards:", error);
-        setCards([]);
+        console.error("Error fetching fraud alerts:", error);
+        setAlerts([]);
         setLoading(false);
       });
   }, []);
+
+  const getStatusStyle = (status) => {
+    if (status === "OPEN") {
+      return {
+        color: "#ef4444",
+        fontWeight: "bold",
+      };
+    }
+
+    if (status === "RESOLVED") {
+      return {
+        color: "#22c55e",
+        fontWeight: "bold",
+      };
+    }
+
+    return {
+      color: "#FFD700",
+      fontWeight: "bold",
+    };
+  };
 
   return (
     <div
@@ -47,18 +63,18 @@ function Cards() {
           marginBottom: "30px",
         }}
       >
-        Cards Management
+        Fraud Alerts
       </h2>
 
       {loading ? (
-        <p>Loading cards...</p>
+        <p>Loading fraud alerts...</p>
       ) : (
         <div
           style={{
             background: "#111827",
             border: "1px solid #FFD700",
             borderRadius: "10px",
-            overflow: "hidden",
+            overflowX: "auto",
           }}
         >
           <table
@@ -74,54 +90,69 @@ function Cards() {
                   color: "#FFD700",
                 }}
               >
-                <th style={tableHeader}>ID</th>
-                <th style={tableHeader}>Card Number</th>
-                <th style={tableHeader}>Card Holder</th>
-                <th style={tableHeader}>Card Type</th>
-                <th style={tableHeader}>Balance</th>
-                <th style={tableHeader}>User</th>
+                <th style={tableHeader}>Alert ID</th>
+                <th style={tableHeader}>Message</th>
+                <th style={tableHeader}>Transaction ID</th>
+                <th style={tableHeader}>Amount</th>
+                <th style={tableHeader}>Merchant</th>
+                <th style={tableHeader}>Fraud Score</th>
+                <th style={tableHeader}>Status</th>
+                <th style={tableHeader}>Alert Time</th>
               </tr>
             </thead>
 
             <tbody>
-              {Array.isArray(cards) && cards.length > 0 ? (
-                cards.map((card) => (
-                  <tr key={card.id}>
+              {alerts.length > 0 ? (
+                alerts.map((alert) => (
+                  <tr key={alert.id}>
+                    <td style={tableCell}>{alert.id}</td>
+
                     <td style={tableCell}>
-                      {card.id}
+                      {alert.message || "N/A"}
                     </td>
 
                     <td style={tableCell}>
-                      {card.cardNumber || "N/A"}
+                      {alert.transaction?.id || "N/A"}
                     </td>
 
                     <td style={tableCell}>
-                      {card.cardHolderName || "N/A"}
+                      ₹{alert.transaction?.amount ?? 0}
                     </td>
 
                     <td style={tableCell}>
-                      {card.cardType || "N/A"}
+                      {alert.transaction?.merchant || "N/A"}
                     </td>
 
                     <td style={tableCell}>
-                      ₹{card.balance ?? 0}
+                      {alert.transaction?.fraudScore ?? 0}
+                    </td>
+
+                    <td
+                      style={{
+                        ...tableCell,
+                        ...getStatusStyle(alert.status),
+                      }}
+                    >
+                      {alert.status || "N/A"}
                     </td>
 
                     <td style={tableCell}>
-                      {card.user?.fullName || "N/A"}
+                      {alert.alertTime
+                        ? new Date(alert.alertTime).toLocaleString()
+                        : "N/A"}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="8"
                     style={{
                       textAlign: "center",
                       padding: "25px",
                     }}
                   >
-                    No cards found.
+                    No fraud alerts found.
                   </td>
                 </tr>
               )}
@@ -137,11 +168,13 @@ const tableHeader = {
   padding: "15px",
   textAlign: "left",
   borderBottom: "1px solid #FFD700",
+  whiteSpace: "nowrap",
 };
 
 const tableCell = {
   padding: "15px",
   borderBottom: "1px solid #334155",
+  whiteSpace: "nowrap",
 };
 
-export default Cards;
+export default FraudAlerts;
