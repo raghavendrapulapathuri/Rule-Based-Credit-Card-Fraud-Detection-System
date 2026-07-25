@@ -2,6 +2,7 @@ package com.raghavendra.fraud_detection.controller;
 
 import com.raghavendra.fraud_detection.entity.Card;
 import com.raghavendra.fraud_detection.service.CardService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,7 +16,7 @@ public class CardController {
     private CardService cardService;
 
     @PostMapping
-    public Card saveCard(@RequestBody Card card) {
+    public Card saveCard(@Valid @RequestBody Card card) {
         return cardService.saveCard(card);
     }
 

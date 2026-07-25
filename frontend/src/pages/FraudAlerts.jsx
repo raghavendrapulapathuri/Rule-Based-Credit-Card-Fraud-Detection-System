@@ -4,8 +4,11 @@ import api from "../services/api";
 function FraudAlerts() {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [resolvingId, setResolvingId] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => {
+  // Fetch all fraud alerts
+  const fetchAlerts = () => {
     api
       .get("/alerts")
       .then((response) => {
@@ -24,12 +27,55 @@ function FraudAlerts() {
         setAlerts([]);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchAlerts();
   }, []);
 
+  // Resolve fraud alert
+  const handleResolve = async (alertId) => {
+    setResolvingId(alertId);
+    setErrorMessage("");
+
+    try {
+      const response = await api.put(
+        `/alerts/${alertId}/resolve`
+      );
+
+      console.log("Resolved Alert:", response.data);
+
+      // Update only the resolved alert in the table
+      setAlerts((previousAlerts) =>
+        previousAlerts.map((alert) =>
+          alert.id === alertId
+            ? response.data
+            : alert
+        )
+      );
+    } catch (error) {
+      console.error("Error resolving fraud alert:", error);
+
+      setErrorMessage(
+        error.response?.data?.message ||
+          "Unable to resolve fraud alert."
+      );
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
   const getStatusStyle = (status) => {
-    if (status === "OPEN") {
+    if (status === "FRAUD") {
       return {
         color: "#ef4444",
+        fontWeight: "bold",
+      };
+    }
+
+    if (status === "SUSPICIOUS") {
+      return {
+        color: "#facc15",
         fontWeight: "bold",
       };
     }
@@ -42,7 +88,7 @@ function FraudAlerts() {
     }
 
     return {
-      color: "#FFD700",
+      color: "#ffffff",
       fontWeight: "bold",
     };
   };
@@ -65,6 +111,21 @@ function FraudAlerts() {
       >
         Fraud Alerts
       </h2>
+
+      {errorMessage && (
+        <div
+          style={{
+            background: "#450a0a",
+            border: "1px solid #ef4444",
+            color: "#fecaca",
+            padding: "12px",
+            borderRadius: "8px",
+            marginBottom: "20px",
+          }}
+        >
+          {errorMessage}
+        </div>
+      )}
 
       {loading ? (
         <p>Loading fraud alerts...</p>
@@ -98,6 +159,9 @@ function FraudAlerts() {
                 <th style={tableHeader}>Fraud Score</th>
                 <th style={tableHeader}>Status</th>
                 <th style={tableHeader}>Alert Time</th>
+
+                {/* New column */}
+                <th style={tableHeader}>Action</th>
               </tr>
             </thead>
 
@@ -105,7 +169,9 @@ function FraudAlerts() {
               {alerts.length > 0 ? (
                 alerts.map((alert) => (
                   <tr key={alert.id}>
-                    <td style={tableCell}>{alert.id}</td>
+                    <td style={tableCell}>
+                      {alert.id}
+                    </td>
 
                     <td style={tableCell}>
                       {alert.message || "N/A"}
@@ -138,15 +204,49 @@ function FraudAlerts() {
 
                     <td style={tableCell}>
                       {alert.alertTime
-                        ? new Date(alert.alertTime).toLocaleString()
+                        ? new Date(
+                            alert.alertTime
+                          ).toLocaleString()
                         : "N/A"}
+                    </td>
+
+                    {/* Resolve Action */}
+                    <td style={tableCell}>
+                      {alert.status === "RESOLVED" ? (
+                        <span
+                          style={{
+                            color: "#22c55e",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          ✓ Resolved
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() =>
+                            handleResolve(alert.id)
+                          }
+                          disabled={resolvingId === alert.id}
+                          style={{
+                            ...resolveButton,
+                            opacity:
+                              resolvingId === alert.id
+                                ? 0.6
+                                : 1,
+                          }}
+                        >
+                          {resolvingId === alert.id
+                            ? "Resolving..."
+                            : "Resolve"}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan="8"
+                    colSpan="9"
                     style={{
                       textAlign: "center",
                       padding: "25px",
@@ -175,6 +275,16 @@ const tableCell = {
   padding: "15px",
   borderBottom: "1px solid #334155",
   whiteSpace: "nowrap",
+};
+
+const resolveButton = {
+  padding: "8px 14px",
+  background: "#FFD700",
+  color: "#000000",
+  border: "none",
+  borderRadius: "6px",
+  cursor: "pointer",
+  fontWeight: "bold",
 };
 
 export default FraudAlerts;

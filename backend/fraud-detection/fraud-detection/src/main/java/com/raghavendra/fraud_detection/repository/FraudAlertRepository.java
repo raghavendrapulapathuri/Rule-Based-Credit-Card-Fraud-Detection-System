@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface FraudAlertRepository extends JpaRepository<FraudAlert, Long> {
 
+    // Count alerts that are not resolved
+    long countByStatusNot(String status);
 }

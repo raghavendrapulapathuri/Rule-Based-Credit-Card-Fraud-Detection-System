@@ -2,6 +2,10 @@ package com.raghavendra.fraud_detection.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,11 +18,24 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Full name is required")
+    @Size(
+            min = 2,
+            max = 100,
+            message = "Full name must be between 2 and 100 characters"
+    )
     private String fullName;
 
+    @NotBlank(message = "Email is required")
+    @Email(message = "Please enter a valid email address")
     @Column(unique = true)
     private String email;
 
+    @NotBlank(message = "Phone number is required")
+    @Pattern(
+            regexp = "^[0-9]{10}$",
+            message = "Phone number must contain exactly 10 digits"
+    )
     private String phoneNumber;
 
     private LocalDateTime createdAt;

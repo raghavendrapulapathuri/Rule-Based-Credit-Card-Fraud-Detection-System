@@ -21,23 +21,30 @@ public class DashboardService {
 
         long total = transactionRepository.count();
         long safe = transactionRepository.countByStatus("SAFE");
-        long suspicious = transactionRepository.countByStatus("SUSPICIOUS");
-        long fraud = transactionRepository.countByStatus("FRAUD");
-        long alerts = fraudAlertRepository.count();
+        long suspicious =
+                transactionRepository.countByStatus("SUSPICIOUS");
+        long fraud =
+                transactionRepository.countByStatus("FRAUD");
+
+        // Count only active/unresolved alerts
+        long activeAlerts =
+                fraudAlertRepository.countByStatusNot("RESOLVED");
 
         System.out.println("==================================");
         System.out.println("Total Transactions = " + total);
         System.out.println("Safe Transactions = " + safe);
-        System.out.println("Suspicious Transactions = " + suspicious);
+        System.out.println(
+                "Suspicious Transactions = " + suspicious
+        );
         System.out.println("Fraud Transactions = " + fraud);
-        System.out.println("Total Alerts = " + alerts);
+        System.out.println("Active Alerts = " + activeAlerts);
         System.out.println("==================================");
 
         response.setTotalTransactions(total);
         response.setSafeTransactions(safe);
         response.setSuspiciousTransactions(suspicious);
         response.setFraudTransactions(fraud);
-        response.setTotalAlerts(alerts);
+        response.setTotalAlerts(activeAlerts);
 
         return response;
     }

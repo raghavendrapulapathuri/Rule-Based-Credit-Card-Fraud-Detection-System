@@ -2,6 +2,9 @@ package com.raghavendra.fraud_detection.controller;
 
 import com.raghavendra.fraud_detection.entity.User;
 import com.raghavendra.fraud_detection.service.UserService;
+
+import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,7 +18,7 @@ public class UserController {
     private UserService userService;
 
     @PostMapping
-    public User saveUser(@RequestBody User user) {
+    public User saveUser(@Valid @RequestBody User user) {
         return userService.saveUser(user);
     }
 
