@@ -1,11 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../services/api";
+
+import {
+  FiUsers,
+  FiUserPlus,
+  FiSearch,
+  FiMail,
+  FiPhone,
+  FiUser,
+  FiCheckCircle,
+  FiShield,
+  FiX,
+  FiRefreshCw,
+} from "react-icons/fi";
 
 function Users() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -16,35 +32,46 @@ function Users() {
     phoneNumber: "",
   });
 
-  // Fetch users
-  const fetchUsers = () => {
-    api
-      .get("/users")
-      .then((response) => {
-        if (Array.isArray(response.data)) {
-          setUsers(response.data);
-        } else {
-          setUsers([]);
-        }
+  /* =====================================================
+     FETCH USERS
+  ===================================================== */
 
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching users:", error);
+  const fetchUsers = async (showRefresh = false) => {
+    if (showRefresh) {
+      setRefreshing(true);
+    }
+
+    try {
+      const response = await api.get("/users");
+
+      if (Array.isArray(response.data)) {
+        setUsers(response.data);
+      } else {
         setUsers([]);
-        setLoading(false);
-      });
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      setUsers([]);
+    } finally {
+      setLoading(false);
+
+      if (showRefresh) {
+        setRefreshing(false);
+      }
+    }
   };
 
   useEffect(() => {
     fetchUsers();
   }, []);
 
-  // Handle input changes
+  /* =====================================================
+     INPUT CHANGE
+  ===================================================== */
+
   const handleChange = (event) => {
     const { name, value } = event.target;
 
-    // Phone number should contain digits only
     if (name === "phoneNumber") {
       const onlyNumbers = value.replace(/\D/g, "");
 
@@ -62,7 +89,10 @@ function Users() {
     }));
   };
 
-  // Frontend validation
+  /* =====================================================
+     VALIDATION
+  ===================================================== */
+
   const validateForm = () => {
     const fullName = formData.fullName.trim();
     const email = formData.email.trim();
@@ -75,8 +105,7 @@ function Users() {
       return false;
     }
 
-    const emailPattern =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailPattern.test(email)) {
       setErrorMessage(
@@ -97,14 +126,16 @@ function Users() {
     return true;
   };
 
-  // Add user
+  /* =====================================================
+     ADD CUSTOMER
+  ===================================================== */
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
     setMessage("");
     setErrorMessage("");
 
-    // Stop before API call if validation fails
     if (!validateForm()) {
       return;
     }
@@ -123,9 +154,9 @@ function Users() {
         userData
       );
 
-      console.log("User Created:", response.data);
+      console.log("Customer Created:", response.data);
 
-      setMessage("User added successfully.");
+      setMessage("Customer added successfully.");
 
       setFormData({
         fullName: "",
@@ -133,24 +164,27 @@ function Users() {
         phoneNumber: "",
       });
 
-      // Refresh users table
-      fetchUsers();
-    } catch (error) {
-      console.error("Error creating user:", error);
+      await fetchUsers();
 
-      // Handle validation/backend errors
+      setTimeout(() => {
+        setShowForm(false);
+        setMessage("");
+      }, 1200);
+    } catch (error) {
+      console.error("Error creating customer:", error);
+
       if (error.response?.status === 400) {
         setErrorMessage(
-          "Invalid user details. Please check the entered information."
+          "Invalid customer details. Please check the entered information."
         );
       } else if (error.response?.status === 409) {
         setErrorMessage(
-          "A user with this email already exists."
+          "A customer with this email already exists."
         );
       } else {
         setErrorMessage(
           error.response?.data?.message ||
-            "Unable to add user."
+            "Unable to add customer."
         );
       }
     } finally {
@@ -158,312 +192,469 @@ function Users() {
     }
   };
 
-  return (
-    <div
-      style={{
-        flex: 1,
-        padding: "30px",
-        background: "#0A192F",
-        minHeight: "100vh",
-        color: "white",
-      }}
-    >
-      {/* Header */}
+  /* =====================================================
+     SEARCH
+  ===================================================== */
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "25px",
-        }}
-      >
-        <h2
-          style={{
-            color: "#FFD700",
-            margin: 0,
-          }}
-        >
-          Users Management
-        </h2>
+  const filteredUsers = useMemo(() => {
+    const search = searchTerm
+      .trim()
+      .toLowerCase();
+
+    if (!search) {
+      return users;
+    }
+
+    return users.filter((user) => {
+      const id = String(user.id ?? "").toLowerCase();
+
+      const name = String(
+        user.fullName ?? ""
+      ).toLowerCase();
+
+      const email = String(
+        user.email ?? ""
+      ).toLowerCase();
+
+      const phone = String(
+        user.phoneNumber ?? ""
+      ).toLowerCase();
+
+      return (
+        id.includes(search) ||
+        name.includes(search) ||
+        email.includes(search) ||
+        phone.includes(search)
+      );
+    });
+  }, [users, searchTerm]);
+
+  /* =====================================================
+     AVATAR INITIAL
+  ===================================================== */
+
+  const getInitial = (name) => {
+    if (!name) {
+      return "U";
+    }
+
+    return name.trim().charAt(0).toUpperCase();
+  };
+
+  return (
+    <div className="customers-page">
+      {/* =================================================
+          HEADER
+      ================================================= */}
+
+      <div className="customers-header">
+        <div>
+          <p className="customers-eyebrow">
+            CUSTOMER MANAGEMENT
+          </p>
+
+          <h1>Customers</h1>
+
+          <p className="customers-description">
+            Manage customer information and monitor
+            registered users in the fraud detection system.
+          </p>
+        </div>
 
         <button
+          className="customer-add-button"
           onClick={() => {
-            setShowForm(!showForm);
+            setShowForm((previous) => !previous);
             setMessage("");
             setErrorMessage("");
           }}
-          style={primaryButton}
         >
-          {showForm ? "Cancel" : "+ Add User"}
+          {showForm ? (
+            <>
+              <FiX />
+              Cancel
+            </>
+          ) : (
+            <>
+              <FiUserPlus />
+              Add Customer
+            </>
+          )}
         </button>
       </div>
 
-      {/* Add User Form */}
+      {/* =================================================
+          SUMMARY CARDS
+      ================================================= */}
+
+      <div className="customer-summary-grid">
+        <CustomerSummaryCard
+          type="blue"
+          icon={<FiUsers />}
+          title="Total Customers"
+          value={users.length}
+          description="Registered customers"
+        />
+
+        <CustomerSummaryCard
+          type="green"
+          icon={<FiCheckCircle />}
+          title="Customer Records"
+          value={users.length}
+          description="Available customer profiles"
+        />
+
+        <CustomerSummaryCard
+          type="purple"
+          icon={<FiShield />}
+          title="System Status"
+          value="Active"
+          description="Customer service operational"
+        />
+      </div>
+
+      {/* =================================================
+          ADD CUSTOMER FORM
+      ================================================= */}
 
       {showForm && (
-        <div style={formContainer}>
-          <h3
-            style={{
-              color: "#FFD700",
-              marginTop: 0,
-            }}
-          >
-            Add New User
-          </h3>
+        <section className="customer-form-panel">
+          <div className="customer-form-header">
+            <div className="customer-form-heading-icon">
+              <FiUserPlus />
+            </div>
+
+            <div>
+              <h3>Add New Customer</h3>
+
+              <p>
+                Enter the customer's personal and contact
+                information.
+              </p>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit}>
-            <div style={formGrid}>
-              {/* Full Name */}
+            <div className="customer-form-grid">
+              {/* FULL NAME */}
 
-              <div>
-                <label style={labelStyle}>
+              <div className="customer-form-group">
+                <label htmlFor="customerFullName">
                   Full Name
                 </label>
 
-                <input
-                  type="text"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  placeholder="Enter full name"
-                  minLength="2"
-                  maxLength="100"
-                  required
-                  style={inputStyle}
-                />
+                <div className="customer-input-wrapper">
+                  <FiUser />
+
+                  <input
+                    id="customerFullName"
+                    type="text"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    placeholder="Enter full name"
+                    minLength="2"
+                    maxLength="100"
+                    required
+                  />
+                </div>
               </div>
 
-              {/* Email */}
+              {/* EMAIL */}
 
-              <div>
-                <label style={labelStyle}>
-                  Email
+              <div className="customer-form-group">
+                <label htmlFor="customerEmail">
+                  Email Address
                 </label>
 
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="Enter email"
-                  required
-                  style={inputStyle}
-                />
+                <div className="customer-input-wrapper">
+                  <FiMail />
+
+                  <input
+                    id="customerEmail"
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="Enter email address"
+                    required
+                  />
+                </div>
               </div>
 
-              {/* Phone Number */}
+              {/* PHONE */}
 
-              <div>
-                <label style={labelStyle}>
+              <div className="customer-form-group">
+                <label htmlFor="customerPhone">
                   Phone Number
                 </label>
 
-                <input
-                  type="tel"
-                  name="phoneNumber"
-                  value={formData.phoneNumber}
-                  onChange={handleChange}
-                  placeholder="Enter 10-digit phone number"
-                  inputMode="numeric"
-                  maxLength="10"
-                  required
-                  style={inputStyle}
-                />
+                <div className="customer-input-wrapper">
+                  <FiPhone />
 
-                <small
-                  style={{
-                    color:
-                      formData.phoneNumber.length === 10
-                        ? "#22c55e"
-                        : "#94a3b8",
-                  }}
+                  <input
+                    id="customerPhone"
+                    type="tel"
+                    name="phoneNumber"
+                    value={formData.phoneNumber}
+                    onChange={handleChange}
+                    placeholder="Enter 10-digit phone number"
+                    inputMode="numeric"
+                    maxLength="10"
+                    required
+                  />
+                </div>
+
+                <div
+                  className={`customer-phone-counter ${
+                    formData.phoneNumber.length === 10
+                      ? "complete"
+                      : ""
+                  }`}
                 >
                   {formData.phoneNumber.length}/10 digits
-                </small>
+                </div>
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                ...primaryButton,
-                marginTop: "20px",
-                opacity: submitting ? 0.6 : 1,
-              }}
-            >
-              {submitting
-                ? "Adding User..."
-                : "Add User"}
-            </button>
-          </form>
+            {/* MESSAGES */}
 
-          {/* Success Message */}
+            {message && (
+              <div className="customer-success-message">
+                <FiCheckCircle />
+                {message}
+              </div>
+            )}
 
-          {message && (
-            <div style={successMessage}>
-              ✓ {message}
-            </div>
-          )}
+            {errorMessage && (
+              <div className="customer-error-message">
+                <FiAlertIcon />
+                {errorMessage}
+              </div>
+            )}
 
-          {/* Error Message */}
-
-          {errorMessage && (
-            <div style={errorStyle}>
-              ⚠ {errorMessage}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Users Table */}
-
-      {loading ? (
-        <p>Loading users...</p>
-      ) : (
-        <div style={tableContainer}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-            }}
-          >
-            <thead>
-              <tr
-                style={{
-                  background: "#000000",
-                  color: "#FFD700",
+            <div className="customer-form-actions">
+              <button
+                type="button"
+                className="customer-cancel-button"
+                onClick={() => {
+                  setShowForm(false);
+                  setMessage("");
+                  setErrorMessage("");
                 }}
               >
-                <th style={tableHeader}>ID</th>
-                <th style={tableHeader}>
-                  Full Name
-                </th>
-                <th style={tableHeader}>Email</th>
-                <th style={tableHeader}>
-                  Phone Number
-                </th>
-              </tr>
-            </thead>
+                Cancel
+              </button>
 
-            <tbody>
-              {users.length > 0 ? (
-                users.map((user) => (
-                  <tr key={user.id}>
-                    <td style={tableCell}>
-                      {user.id}
-                    </td>
+              <button
+                type="submit"
+                className="customer-submit-button"
+                disabled={submitting}
+              >
+                <FiUserPlus />
 
-                    <td style={tableCell}>
-                      {user.fullName || "N/A"}
-                    </td>
+                {submitting
+                  ? "Adding Customer..."
+                  : "Add Customer"}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
 
-                    <td style={tableCell}>
-                      {user.email || "N/A"}
-                    </td>
+      {/* =================================================
+          CUSTOMER TABLE PANEL
+      ================================================= */}
 
-                    <td style={tableCell}>
-                      {user.phoneNumber || "N/A"}
+      <section className="customer-table-panel">
+        {/* TOOLBAR */}
+
+        <div className="customer-table-toolbar">
+          <div className="customer-search">
+            <FiSearch />
+
+            <input
+              type="text"
+              placeholder="Search by name, email, phone or ID..."
+              value={searchTerm}
+              onChange={(event) =>
+                setSearchTerm(event.target.value)
+              }
+            />
+          </div>
+
+          <button
+            className="customer-refresh-button"
+            onClick={() => fetchUsers(true)}
+            disabled={refreshing}
+          >
+            <FiRefreshCw
+              className={
+                refreshing ? "customer-spin" : ""
+              }
+            />
+
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+
+        {/* RESULT INFORMATION */}
+
+        <div className="customer-result-info">
+          <span>
+            Showing{" "}
+            <strong>{filteredUsers.length}</strong> of{" "}
+            <strong>{users.length}</strong> customers
+          </span>
+
+          <span className="customer-system-status">
+            <span className="customer-status-dot"></span>
+            Customer service active
+          </span>
+        </div>
+
+        {/* TABLE */}
+
+        {loading ? (
+          <div className="customer-loading">
+            Loading customers...
+          </div>
+        ) : (
+          <div className="customer-table-scroll">
+            <table className="customer-table">
+              <thead>
+                <tr>
+                  <th>Customer ID</th>
+                  <th>Customer</th>
+                  <th>Email Address</th>
+                  <th>Phone Number</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
+                    <tr key={user.id}>
+                      {/* ID */}
+
+                      <td>
+                        <span className="customer-id">
+                          #{user.id}
+                        </span>
+                      </td>
+
+                      {/* CUSTOMER */}
+
+                      <td>
+                        <div className="customer-profile-cell">
+                          <div className="customer-avatar">
+                            {getInitial(user.fullName)}
+                          </div>
+
+                          <div>
+                            <strong>
+                              {user.fullName || "N/A"}
+                            </strong>
+
+                            <span>
+                              Registered Customer
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* EMAIL */}
+
+                      <td>
+                        <div className="customer-contact-cell">
+                          <FiMail />
+
+                          <span>
+                            {user.email || "N/A"}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* PHONE */}
+
+                      <td>
+                        <div className="customer-contact-cell">
+                          <FiPhone />
+
+                          <span>
+                            {user.phoneNumber || "N/A"}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* STATUS */}
+
+                      <td>
+                        <span className="customer-active-badge">
+                          <span></span>
+                          Active
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="5"
+                      className="customer-empty"
+                    >
+                      {searchTerm
+                        ? "No customers match your search."
+                        : "No customers found."}
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan="4"
-                    style={{
-                      textAlign: "center",
-                      padding: "25px",
-                    }}
-                  >
-                    No users found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
 
-const tableHeader = {
-  padding: "15px",
-  textAlign: "left",
-  borderBottom: "1px solid #FFD700",
-};
+/* =====================================================
+   SUMMARY CARD
+===================================================== */
 
-const tableCell = {
-  padding: "15px",
-  borderBottom: "1px solid #334155",
-};
+function CustomerSummaryCard({
+  type,
+  icon,
+  title,
+  value,
+  description,
+}) {
+  return (
+    <div className={`customer-summary-card ${type}`}>
+      <div
+        className={`customer-summary-icon ${type}`}
+      >
+        {icon}
+      </div>
 
-const tableContainer = {
-  background: "#111827",
-  border: "1px solid #FFD700",
-  borderRadius: "10px",
-  overflowX: "auto",
-};
+      <div>
+        <span>{title}</span>
 
-const formContainer = {
-  background: "#111827",
-  border: "1px solid #FFD700",
-  borderRadius: "10px",
-  padding: "25px",
-  marginBottom: "30px",
-};
+        <strong>{value}</strong>
 
-const formGrid = {
-  display: "grid",
-  gridTemplateColumns:
-    "repeat(3, minmax(200px, 1fr))",
-  gap: "20px",
-};
+        <p>{description}</p>
+      </div>
+    </div>
+  );
+}
 
-const labelStyle = {
-  display: "block",
-  marginBottom: "8px",
-  color: "#FFD700",
-  fontWeight: "bold",
-};
+/* =====================================================
+   SIMPLE ALERT ICON
+===================================================== */
 
-const inputStyle = {
-  width: "100%",
-  padding: "12px",
-  borderRadius: "6px",
-  border: "1px solid #475569",
-  background: "#0A192F",
-  color: "white",
-  boxSizing: "border-box",
-  marginBottom: "5px",
-};
-
-const primaryButton = {
-  padding: "11px 18px",
-  background: "#FFD700",
-  color: "#000000",
-  border: "none",
-  borderRadius: "7px",
-  cursor: "pointer",
-  fontWeight: "bold",
-};
-
-const successMessage = {
-  marginTop: "20px",
-  padding: "12px",
-  border: "1px solid #22c55e",
-  borderRadius: "8px",
-  color: "#22c55e",
-};
-
-const errorStyle = {
-  marginTop: "20px",
-  padding: "12px",
-  border: "1px solid #ef4444",
-  borderRadius: "8px",
-  color: "#ef4444",
-};
+function FiAlertIcon() {
+  return <span>!</span>;
+}
 
 export default Users;

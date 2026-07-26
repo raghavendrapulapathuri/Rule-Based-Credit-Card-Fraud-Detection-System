@@ -1,5 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../services/api";
+
+import {
+  FiAlertTriangle,
+  FiBell,
+  FiCheckCircle,
+  FiRefreshCw,
+  FiSearch,
+  FiShield,
+  FiActivity,
+} from "react-icons/fi";
 
 function FraudAlerts() {
   const [alerts, setAlerts] = useState([]);
@@ -7,33 +17,49 @@ function FraudAlerts() {
   const [resolvingId, setResolvingId] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Fetch all fraud alerts
-  const fetchAlerts = () => {
-    api
-      .get("/alerts")
-      .then((response) => {
-        console.log("Fraud Alerts API Response:", response.data);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
-        if (Array.isArray(response.data)) {
-          setAlerts(response.data);
-        } else {
-          setAlerts([]);
-        }
+  /* =====================================================
+     FETCH ALERTS
+  ===================================================== */
 
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching fraud alerts:", error);
+  const fetchAlerts = async () => {
+    setLoading(true);
+    setErrorMessage("");
+
+    try {
+      const response = await api.get("/alerts");
+
+      console.log("Fraud Alerts API Response:", response.data);
+
+      if (Array.isArray(response.data)) {
+        setAlerts(response.data);
+      } else {
         setAlerts([]);
-        setLoading(false);
-      });
+      }
+    } catch (error) {
+      console.error("Error fetching fraud alerts:", error);
+
+      setAlerts([]);
+
+      setErrorMessage(
+        error.response?.data?.message ||
+          "Unable to load fraud alerts."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchAlerts();
   }, []);
 
-  // Resolve fraud alert
+  /* =====================================================
+     RESOLVE ALERT
+  ===================================================== */
+
   const handleResolve = async (alertId) => {
     setResolvingId(alertId);
     setErrorMessage("");
@@ -45,12 +71,9 @@ function FraudAlerts() {
 
       console.log("Resolved Alert:", response.data);
 
-      // Update only the resolved alert in the table
       setAlerts((previousAlerts) =>
         previousAlerts.map((alert) =>
-          alert.id === alertId
-            ? response.data
-            : alert
+          alert.id === alertId ? response.data : alert
         )
       );
     } catch (error) {
@@ -65,226 +88,507 @@ function FraudAlerts() {
     }
   };
 
-  const getStatusStyle = (status) => {
-    if (status === "FRAUD") {
-      return {
-        color: "#ef4444",
-        fontWeight: "bold",
-      };
+  /* =====================================================
+     SUMMARY COUNTS
+  ===================================================== */
+
+  const totalAlerts = alerts.length;
+
+  const resolvedAlerts = alerts.filter(
+    (alert) =>
+      String(alert.status || "").toUpperCase() === "RESOLVED"
+  ).length;
+
+  const activeAlerts = alerts.filter(
+    (alert) =>
+      String(alert.status || "").toUpperCase() !== "RESOLVED"
+  ).length;
+
+  const highRiskAlerts = alerts.filter(
+    (alert) =>
+      Number(alert.transaction?.fraudScore || 0) >= 50
+  ).length;
+
+  /* =====================================================
+     SEARCH + FILTER
+  ===================================================== */
+
+  const filteredAlerts = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+
+    return alerts.filter((alert) => {
+      const status = String(
+        alert.status || ""
+      ).toUpperCase();
+
+      let matchesStatus = true;
+
+      if (statusFilter === "ACTIVE") {
+        matchesStatus = status !== "RESOLVED";
+      } else if (statusFilter !== "ALL") {
+        matchesStatus = status === statusFilter;
+      }
+
+      const searchableText = [
+        alert.id,
+        alert.message,
+        alert.status,
+        alert.transaction?.id,
+        alert.transaction?.amount,
+        alert.transaction?.merchant,
+        alert.transaction?.fraudScore,
+      ]
+        .filter(
+          (value) =>
+            value !== null && value !== undefined
+        )
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch =
+        search === "" || searchableText.includes(search);
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [alerts, searchTerm, statusFilter]);
+
+  /* =====================================================
+     HELPERS
+  ===================================================== */
+
+  const getRiskType = (score) => {
+    const value = Number(score || 0);
+
+    if (value >= 50) {
+      return "fraud";
     }
 
-    if (status === "SUSPICIOUS") {
-      return {
-        color: "#facc15",
-        fontWeight: "bold",
-      };
+    if (value >= 20) {
+      return "suspicious";
     }
 
-    if (status === "RESOLVED") {
-      return {
-        color: "#22c55e",
-        fontWeight: "bold",
-      };
-    }
-
-    return {
-      color: "#ffffff",
-      fontWeight: "bold",
-    };
+    return "safe";
   };
 
+  const formatAmount = (amount) => {
+    const value = Number(amount || 0);
+
+    return `₹${value.toLocaleString("en-IN")}`;
+  };
+
+  const formatDate = (date) => {
+    if (!date) {
+      return "N/A";
+    }
+
+    const parsedDate = new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return "N/A";
+    }
+
+    return parsedDate.toLocaleString();
+  };
+
+  /* =====================================================
+     PAGE
+  ===================================================== */
+
   return (
-    <div
-      style={{
-        flex: 1,
-        padding: "30px",
-        background: "#0A192F",
-        minHeight: "100vh",
-        color: "white",
-      }}
-    >
-      <h2
-        style={{
-          color: "#FFD700",
-          marginBottom: "30px",
-        }}
-      >
-        Fraud Alerts
-      </h2>
+    <div className="fraud-alerts-page">
+
+      {/* ================= HEADER ================= */}
+
+      <div className="fraud-alerts-header">
+        <div>
+          <p className="fraud-alerts-eyebrow">
+            SECURITY MONITORING
+          </p>
+
+          <h1>Fraud Alerts</h1>
+
+          <p className="fraud-alerts-subtitle">
+            Review and manage suspicious and fraudulent
+            transaction alerts detected by the rule engine.
+          </p>
+        </div>
+
+        <div className="fraud-monitoring-badge">
+          <span className="fraud-monitoring-dot"></span>
+          Fraud Monitoring Active
+        </div>
+      </div>
+
+      {/* ================= ERROR ================= */}
 
       {errorMessage && (
-        <div
-          style={{
-            background: "#450a0a",
-            border: "1px solid #ef4444",
-            color: "#fecaca",
-            padding: "12px",
-            borderRadius: "8px",
-            marginBottom: "20px",
-          }}
-        >
-          {errorMessage}
+        <div className="fraud-alert-error">
+          <FiAlertTriangle />
+          <span>{errorMessage}</span>
         </div>
       )}
 
-      {loading ? (
-        <p>Loading fraud alerts...</p>
-      ) : (
-        <div
-          style={{
-            background: "#111827",
-            border: "1px solid #FFD700",
-            borderRadius: "10px",
-            overflowX: "auto",
-          }}
-        >
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-            }}
+      {/* ================= SUMMARY ================= */}
+
+      <div className="fraud-alert-summary-grid">
+        <AlertSummaryCard
+          type="blue"
+          icon={<FiBell />}
+          title="Total Alerts"
+          value={totalAlerts}
+          footer="All generated alerts"
+        />
+
+        <AlertSummaryCard
+          type="red"
+          icon={<FiAlertTriangle />}
+          title="Active Alerts"
+          value={activeAlerts}
+          footer="Requires attention"
+        />
+
+        <AlertSummaryCard
+          type="green"
+          icon={<FiCheckCircle />}
+          title="Resolved"
+          value={resolvedAlerts}
+          footer="Successfully reviewed"
+        />
+
+        <AlertSummaryCard
+          type="orange"
+          icon={<FiShield />}
+          title="High Risk"
+          value={highRiskAlerts}
+          footer="Fraud score 50 or above"
+        />
+      </div>
+
+      {/* ================= TABLE PANEL ================= */}
+
+      <section className="fraud-alert-panel">
+
+        {/* TOOLBAR */}
+
+        <div className="fraud-alert-toolbar">
+          <div className="fraud-alert-search">
+            <FiSearch />
+
+            <input
+              type="text"
+              placeholder="Search alert, merchant, transaction ID..."
+              value={searchTerm}
+              onChange={(event) =>
+                setSearchTerm(event.target.value)
+              }
+            />
+          </div>
+
+          <select
+            className="fraud-alert-filter"
+            value={statusFilter}
+            onChange={(event) =>
+              setStatusFilter(event.target.value)
+            }
           >
-            <thead>
-              <tr
-                style={{
-                  background: "#000000",
-                  color: "#FFD700",
-                }}
-              >
-                <th style={tableHeader}>Alert ID</th>
-                <th style={tableHeader}>Message</th>
-                <th style={tableHeader}>Transaction ID</th>
-                <th style={tableHeader}>Amount</th>
-                <th style={tableHeader}>Merchant</th>
-                <th style={tableHeader}>Fraud Score</th>
-                <th style={tableHeader}>Status</th>
-                <th style={tableHeader}>Alert Time</th>
+            <option value="ALL">All Alerts</option>
+            <option value="ACTIVE">Active</option>
+            <option value="RESOLVED">Resolved</option>
+            <option value="FRAUD">Fraud</option>
+            <option value="SUSPICIOUS">
+              Suspicious
+            </option>
+          </select>
 
-                {/* New column */}
-                <th style={tableHeader}>Action</th>
-              </tr>
-            </thead>
+          <button
+            className="fraud-alert-refresh"
+            onClick={fetchAlerts}
+            disabled={loading}
+          >
+            <FiRefreshCw
+              className={loading ? "spin-icon" : ""}
+            />
 
-            <tbody>
-              {alerts.length > 0 ? (
-                alerts.map((alert) => (
-                  <tr key={alert.id}>
-                    <td style={tableCell}>
-                      {alert.id}
-                    </td>
-
-                    <td style={tableCell}>
-                      {alert.message || "N/A"}
-                    </td>
-
-                    <td style={tableCell}>
-                      {alert.transaction?.id || "N/A"}
-                    </td>
-
-                    <td style={tableCell}>
-                      ₹{alert.transaction?.amount ?? 0}
-                    </td>
-
-                    <td style={tableCell}>
-                      {alert.transaction?.merchant || "N/A"}
-                    </td>
-
-                    <td style={tableCell}>
-                      {alert.transaction?.fraudScore ?? 0}
-                    </td>
-
-                    <td
-                      style={{
-                        ...tableCell,
-                        ...getStatusStyle(alert.status),
-                      }}
-                    >
-                      {alert.status || "N/A"}
-                    </td>
-
-                    <td style={tableCell}>
-                      {alert.alertTime
-                        ? new Date(
-                            alert.alertTime
-                          ).toLocaleString()
-                        : "N/A"}
-                    </td>
-
-                    {/* Resolve Action */}
-                    <td style={tableCell}>
-                      {alert.status === "RESOLVED" ? (
-                        <span
-                          style={{
-                            color: "#22c55e",
-                            fontWeight: "bold",
-                          }}
-                        >
-                          ✓ Resolved
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() =>
-                            handleResolve(alert.id)
-                          }
-                          disabled={resolvingId === alert.id}
-                          style={{
-                            ...resolveButton,
-                            opacity:
-                              resolvingId === alert.id
-                                ? 0.6
-                                : 1,
-                          }}
-                        >
-                          {resolvingId === alert.id
-                            ? "Resolving..."
-                            : "Resolve"}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan="9"
-                    style={{
-                      textAlign: "center",
-                      padding: "25px",
-                    }}
-                  >
-                    No fraud alerts found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+            Refresh
+          </button>
         </div>
-      )}
+
+        {/* RESULT INFO */}
+
+        <div className="fraud-alert-result-info">
+          <span>
+            Showing{" "}
+            <strong>{filteredAlerts.length}</strong> of{" "}
+            <strong>{alerts.length}</strong> alerts
+          </span>
+
+          <span className="fraud-alert-engine">
+            <FiActivity />
+            Rule engine active
+          </span>
+        </div>
+
+        {/* ================= TABLE ================= */}
+
+        <div className="fraud-alert-table-wrapper">
+          {loading ? (
+            <div className="fraud-alert-loading">
+              <FiRefreshCw className="spin-icon" />
+              <p>Loading fraud alerts...</p>
+            </div>
+          ) : (
+            <div className="fraud-alert-table-scroll">
+              <table className="fraud-alert-table">
+                <thead>
+                  <tr>
+                    <th>Alert ID</th>
+                    <th>Message</th>
+                    <th>Transaction</th>
+                    <th>Amount</th>
+                    <th>Merchant</th>
+                    <th>Risk Score</th>
+                    <th>Status</th>
+                    <th>Alert Time</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredAlerts.length > 0 ? (
+                    filteredAlerts.map((alert) => {
+                      const score =
+                        Number(
+                          alert.transaction?.fraudScore
+                        ) || 0;
+
+                      const riskType =
+                        getRiskType(score);
+
+                      const status = String(
+                        alert.status || "UNKNOWN"
+                      ).toUpperCase();
+
+                      const isResolved =
+                        status === "RESOLVED";
+
+                      return (
+                        <tr key={alert.id}>
+
+                          {/* ALERT ID */}
+
+                          <td>
+                            <span className="fraud-alert-id">
+                              #{alert.id}
+                            </span>
+                          </td>
+
+                          {/* MESSAGE */}
+
+                          <td>
+                            <div className="fraud-alert-message-cell">
+                              <div
+                                className={`fraud-alert-message-icon ${riskType}`}
+                              >
+                                {isResolved ? (
+                                  <FiCheckCircle />
+                                ) : (
+                                  <FiAlertTriangle />
+                                )}
+                              </div>
+
+                              <div>
+                                <strong>
+                                  {alert.message ||
+                                    "Fraud alert"}
+                                </strong>
+
+                                <span>
+                                  Security notification
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* TRANSACTION ID */}
+
+                          <td>
+                            <span className="fraud-transaction-id">
+                              #
+                              {alert.transaction?.id ??
+                                "N/A"}
+                            </span>
+                          </td>
+
+                          {/* AMOUNT */}
+
+                          <td>
+                            <strong className="fraud-alert-amount">
+                              {formatAmount(
+                                alert.transaction?.amount
+                              )}
+                            </strong>
+                          </td>
+
+                          {/* MERCHANT */}
+
+                          <td>
+                            {alert.transaction?.merchant ||
+                              "N/A"}
+                          </td>
+
+                          {/* FRAUD SCORE */}
+
+                          <td>
+                            <RiskScore
+                              score={score}
+                              type={riskType}
+                            />
+                          </td>
+
+                          {/* STATUS */}
+
+                          <td>
+                            <span
+                              className={`fraud-alert-status ${
+                                isResolved
+                                  ? "resolved"
+                                  : status === "FRAUD"
+                                  ? "fraud"
+                                  : "suspicious"
+                              }`}
+                            >
+                              <span className="fraud-status-dot"></span>
+
+                              {status}
+                            </span>
+                          </td>
+
+                          {/* TIME */}
+
+                          <td className="fraud-alert-time">
+                            {formatDate(alert.alertTime)}
+                          </td>
+
+                          {/* ACTION */}
+
+                          <td>
+                            {isResolved ? (
+                              <div className="fraud-resolved-label">
+                                <FiCheckCircle />
+                                Resolved
+                              </div>
+                            ) : (
+                              <button
+                                className="fraud-resolve-btn"
+                                disabled={
+                                  resolvingId === alert.id
+                                }
+                                onClick={() =>
+                                  handleResolve(alert.id)
+                                }
+                              >
+                                {resolvingId ===
+                                alert.id ? (
+                                  <>
+                                    <FiRefreshCw className="spin-icon" />
+                                    Resolving
+                                  </>
+                                ) : (
+                                  <>
+                                    <FiCheckCircle />
+                                    Resolve
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="9"
+                        className="fraud-alert-empty"
+                      >
+                        <FiShield />
+
+                        <strong>
+                          No fraud alerts found
+                        </strong>
+
+                        <span>
+                          No alerts match the current
+                          search or filter.
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
 
-const tableHeader = {
-  padding: "15px",
-  textAlign: "left",
-  borderBottom: "1px solid #FFD700",
-  whiteSpace: "nowrap",
-};
+/* =====================================================
+   SUMMARY CARD
+===================================================== */
 
-const tableCell = {
-  padding: "15px",
-  borderBottom: "1px solid #334155",
-  whiteSpace: "nowrap",
-};
+function AlertSummaryCard({
+  type,
+  icon,
+  title,
+  value,
+  footer,
+}) {
+  return (
+    <div
+      className={`fraud-alert-summary-card ${type}`}
+    >
+      <div
+        className={`fraud-alert-summary-icon ${type}`}
+      >
+        {icon}
+      </div>
 
-const resolveButton = {
-  padding: "8px 14px",
-  background: "#FFD700",
-  color: "#000000",
-  border: "none",
-  borderRadius: "6px",
-  cursor: "pointer",
-  fontWeight: "bold",
-};
+      <div>
+        <span>{title}</span>
+
+        <strong>{value}</strong>
+
+        <p>{footer}</p>
+      </div>
+    </div>
+  );
+}
+
+/* =====================================================
+   RISK SCORE
+===================================================== */
+
+function RiskScore({ score, type }) {
+  const percentage = Math.min(
+    Math.max(Number(score) || 0, 0),
+    100
+  );
+
+  return (
+    <div className={`fraud-risk-score ${type}`}>
+      <strong>{score}</strong>
+
+      <div className="fraud-risk-track">
+        <span
+          style={{
+            width: `${percentage}%`,
+          }}
+        ></span>
+      </div>
+    </div>
+  );
+}
 
 export default FraudAlerts;

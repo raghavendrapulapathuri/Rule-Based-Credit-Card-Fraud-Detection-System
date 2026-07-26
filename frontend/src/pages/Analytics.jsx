@@ -6,9 +6,23 @@ import {
   Pie,
   Cell,
   Tooltip,
-  Legend,
   ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
 } from "recharts";
+
+import {
+  FiActivity,
+  FiCheckCircle,
+  FiAlertTriangle,
+  FiShield,
+  FiDollarSign,
+  FiPieChart,
+  FiBarChart2,
+} from "react-icons/fi";
 
 function Analytics() {
   const [analytics, setAnalytics] = useState({
@@ -21,275 +35,525 @@ function Analytics() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([
-      api.get("/analytics/fraud-percentage"),
-      api.get("/analytics/fraud-amount"),
-      api.get("/dashboard/summary"),
-    ])
-      .then(
-        ([
-          percentageResponse,
-          amountResponse,
-          dashboardResponse,
-        ]) => {
-          console.log(
-            "Fraud Percentage:",
-            percentageResponse.data
-          );
-
-          console.log(
-            "Fraud Amount:",
-            amountResponse.data
-          );
-
-          console.log(
-            "Dashboard Summary:",
-            dashboardResponse.data
-          );
-
-          setAnalytics({
-            totalTransactions:
-              dashboardResponse.data.totalTransactions ?? 0,
-
-            safeTransactions:
-              dashboardResponse.data.safeTransactions ?? 0,
-
-            suspiciousTransactions:
-              dashboardResponse.data.suspiciousTransactions ?? 0,
-
-            fraudTransactions:
-              dashboardResponse.data.fraudTransactions ?? 0,
-
-            fraudPercentage:
-              percentageResponse.data.fraudPercentage ?? 0,
-
-            fraudAmount:
-              amountResponse.data ?? 0,
-          });
-
-          setLoading(false);
-        }
-      )
-      .catch((error) => {
-        console.error(
-          "Error fetching analytics:",
-          error
-        );
-
-        setLoading(false);
-      });
+    fetchAnalytics();
   }, []);
 
-  const chartData = [
+  const fetchAnalytics = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [
+        percentageResponse,
+        amountResponse,
+        dashboardResponse,
+      ] = await Promise.all([
+        api.get("/analytics/fraud-percentage"),
+        api.get("/analytics/fraud-amount"),
+        api.get("/dashboard/summary"),
+      ]);
+
+      setAnalytics({
+        totalTransactions:
+          dashboardResponse.data.totalTransactions ?? 0,
+
+        safeTransactions:
+          dashboardResponse.data.safeTransactions ?? 0,
+
+        suspiciousTransactions:
+          dashboardResponse.data.suspiciousTransactions ?? 0,
+
+        fraudTransactions:
+          dashboardResponse.data.fraudTransactions ?? 0,
+
+        fraudPercentage:
+          percentageResponse.data.fraudPercentage ?? 0,
+
+        fraudAmount:
+          amountResponse.data ?? 0,
+      });
+    } catch (error) {
+      console.error("Analytics error:", error);
+      setError("Unable to load analytics data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const distributionData = [
     {
-      name: "SAFE",
+      name: "Safe",
       value: analytics.safeTransactions,
+      color: "#22c55e",
     },
     {
-      name: "SUSPICIOUS",
+      name: "Suspicious",
       value: analytics.suspiciousTransactions,
+      color: "#f59e0b",
     },
     {
-      name: "FRAUD",
+      name: "Fraud",
       value: analytics.fraudTransactions,
+      color: "#ef4444",
     },
   ];
 
-  const COLORS = [
-    "#22c55e",
-    "#facc15",
-    "#ef4444",
+  const barData = [
+    {
+      name: "Safe",
+      transactions: analytics.safeTransactions,
+      fill: "#22c55e",
+    },
+    {
+      name: "Suspicious",
+      transactions: analytics.suspiciousTransactions,
+      fill: "#f59e0b",
+    },
+    {
+      name: "Fraud",
+      transactions: analytics.fraudTransactions,
+      fill: "#ef4444",
+    },
   ];
+
+  const safePercentage =
+    analytics.totalTransactions > 0
+      ? (
+          (analytics.safeTransactions /
+            analytics.totalTransactions) *
+          100
+        ).toFixed(1)
+      : "0.0";
+
+  const suspiciousPercentage =
+    analytics.totalTransactions > 0
+      ? (
+          (analytics.suspiciousTransactions /
+            analytics.totalTransactions) *
+          100
+        ).toFixed(1)
+      : "0.0";
+
+  const fraudPercentage = Number(
+    analytics.fraudPercentage
+  ).toFixed(1);
 
   return (
-    <div
-      style={{
-        flex: 1,
-        padding: "30px",
-        background: "#0A192F",
-        minHeight: "100vh",
-        color: "white",
-      }}
-    >
-      <h2
-        style={{
-          color: "#FFD700",
-          textAlign: "center",
-          marginBottom: "35px",
-        }}
-      >
-        Fraud Analytics
-      </h2>
+    <div className="analytics-page">
+      {/* HEADER */}
+
+      <div className="analytics-page-header">
+        <div>
+          <p className="analytics-eyebrow">
+            FRAUD INTELLIGENCE
+          </p>
+
+          <h1>Analytics</h1>
+
+          <p className="analytics-description">
+            Analyze transaction patterns, fraud rates and
+            financial risk across the fraud detection system.
+          </p>
+        </div>
+
+        <div className="analytics-live-status">
+          <span></span>
+          Analytics Active
+        </div>
+      </div>
 
       {loading ? (
-        <p
-          style={{
-            textAlign: "center",
-          }}
-        >
+        <div className="analytics-loading">
           Loading analytics...
-        </p>
+        </div>
+      ) : error ? (
+        <div className="analytics-error">
+          {error}
+
+          <button onClick={fetchAnalytics}>
+            Try Again
+          </button>
+        </div>
       ) : (
         <>
-          {/* Analytics Cards */}
+          {/* TOP STAT CARDS */}
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(2, 280px)",
-              gap: "30px",
-              justifyContent: "center",
-              marginBottom: "50px",
-            }}
-          >
-            <AnalyticsCard
-              icon="💰"
+          <div className="analytics-stat-grid">
+            <AnalyticsStatCard
+              type="blue"
+              icon={<FiActivity />}
               title="Total Transactions"
               value={analytics.totalTransactions}
+              description="All processed transactions"
             />
 
-            <AnalyticsCard
-              icon="🚨"
+            <AnalyticsStatCard
+              type="green"
+              icon={<FiCheckCircle />}
+              title="Safe Transactions"
+              value={analytics.safeTransactions}
+              description={`${safePercentage}% of transactions`}
+            />
+
+            <AnalyticsStatCard
+              type="orange"
+              icon={<FiAlertTriangle />}
+              title="Suspicious"
+              value={analytics.suspiciousTransactions}
+              description={`${suspiciousPercentage}% require review`}
+            />
+
+            <AnalyticsStatCard
+              type="red"
+              icon={<FiShield />}
               title="Fraud Transactions"
               value={analytics.fraudTransactions}
-            />
-
-            <AnalyticsCard
-              icon="📊"
-              title="Fraud Percentage"
-              value={`${Number(
-                analytics.fraudPercentage
-              ).toFixed(2)}%`}
-            />
-
-            <AnalyticsCard
-              icon="💸"
-              title="Total Fraud Amount"
-              value={`₹${Number(
-                analytics.fraudAmount
-              ).toLocaleString("en-IN")}`}
+              description={`${fraudPercentage}% fraud rate`}
             />
           </div>
 
-          {/* Pie Chart */}
+          {/* MAIN CHARTS */}
 
-          <div
-            style={{
-              maxWidth: "750px",
-              margin: "0 auto",
-              background: "#111827",
-              border: "1px solid #FFD700",
-              borderRadius: "15px",
-              padding: "25px",
-            }}
-          >
-            <h3
-              style={{
-                color: "#FFD700",
-                textAlign: "center",
-                marginTop: 0,
-                marginBottom: "20px",
-              }}
-            >
-              Transaction Risk Distribution
-            </h3>
+          <div className="analytics-chart-grid">
+            {/* PIE CHART */}
 
-            <div
-              style={{
-                width: "100%",
-                height: "350px",
-              }}
-            >
-              <ResponsiveContainer
-                width="100%"
-                height="100%"
-              >
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="45%"
-                    labelLine={false}
-                    outerRadius={110}
-                    dataKey="value"
-                    nameKey="name"
-                    label={({ name, value }) =>
-                      `${name}: ${value}`
-                    }
+            <section className="analytics-panel">
+              <div className="analytics-panel-header">
+                <div>
+                  <h3>Risk Distribution</h3>
+                  <p>
+                    Transaction classification overview
+                  </p>
+                </div>
+
+                <div className="analytics-panel-icon">
+                  <FiPieChart />
+                </div>
+              </div>
+
+              <div className="analytics-pie-container">
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                >
+                  <PieChart>
+                    <Pie
+                      data={distributionData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={75}
+                      outerRadius={110}
+                      paddingAngle={4}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {distributionData.map(
+                        (entry, index) => (
+                          <Cell
+                            key={index}
+                            fill={entry.color}
+                          />
+                        )
+                      )}
+                    </Pie>
+
+                    <Tooltip
+                      contentStyle={{
+                        background: "#0f172a",
+                        border:
+                          "1px solid #334155",
+                        borderRadius: "10px",
+                        color: "#fff",
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+
+                <div className="analytics-pie-center">
+                  <strong>
+                    {analytics.totalTransactions}
+                  </strong>
+                  <span>Total</span>
+                </div>
+              </div>
+
+              <div className="analytics-legend">
+                {distributionData.map((item) => (
+                  <div
+                    className="analytics-legend-item"
+                    key={item.name}
                   >
-                    {chartData.map(
-                      (entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={
-                            COLORS[
-                              index %
-                                COLORS.length
-                            ]
-                          }
-                        />
-                      )
-                    )}
-                  </Pie>
+                    <span
+                      className="analytics-legend-dot"
+                      style={{
+                        background: item.color,
+                      }}
+                    ></span>
 
-                  <Tooltip />
+                    <div>
+                      <span>{item.name}</span>
+                      <strong>{item.value}</strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
 
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            {/* BAR CHART */}
+
+            <section className="analytics-panel">
+              <div className="analytics-panel-header">
+                <div>
+                  <h3>Transaction Classification</h3>
+                  <p>
+                    Comparison by transaction status
+                  </p>
+                </div>
+
+                <div className="analytics-panel-icon">
+                  <FiBarChart2 />
+                </div>
+              </div>
+
+              <div className="analytics-bar-container">
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                >
+                  <BarChart data={barData}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#1e293b"
+                      vertical={false}
+                    />
+
+                    <XAxis
+                      dataKey="name"
+                      stroke="#64748b"
+                      tick={{
+                        fill: "#94a3b8",
+                        fontSize: 12,
+                      }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+
+                    <YAxis
+                      stroke="#64748b"
+                      tick={{
+                        fill: "#94a3b8",
+                        fontSize: 12,
+                      }}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={false}
+                    />
+
+                    <Tooltip
+                      cursor={{
+                        fill:
+                          "rgba(255,255,255,0.03)",
+                      }}
+                      contentStyle={{
+                        background: "#0f172a",
+                        border:
+                          "1px solid #334155",
+                        borderRadius: "10px",
+                        color: "#fff",
+                      }}
+                    />
+
+                    <Bar
+                      dataKey="transactions"
+                      radius={[6, 6, 0, 0]}
+                    >
+                      {barData.map(
+                        (entry, index) => (
+                          <Cell
+                            key={index}
+                            fill={entry.fill}
+                          />
+                        )
+                      )}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
           </div>
+
+          {/* FINANCIAL RISK */}
+
+          <div className="analytics-bottom-grid">
+            <section className="analytics-risk-card">
+              <div className="analytics-risk-icon fraud">
+                <FiDollarSign />
+              </div>
+
+              <div>
+                <span>Total Fraud Amount</span>
+
+                <strong>
+                  ₹
+                  {Number(
+                    analytics.fraudAmount
+                  ).toLocaleString("en-IN")}
+                </strong>
+
+                <p>
+                  Total monetary value associated with
+                  fraudulent transactions
+                </p>
+              </div>
+            </section>
+
+            <section className="analytics-risk-card">
+              <div className="analytics-risk-icon rate">
+                <FiActivity />
+              </div>
+
+              <div>
+                <span>Overall Fraud Rate</span>
+
+                <strong>
+                  {fraudPercentage}%
+                </strong>
+
+                <p>
+                  Percentage of all transactions classified
+                  as fraud
+                </p>
+              </div>
+            </section>
+
+            <section className="analytics-risk-card">
+              <div className="analytics-risk-icon review">
+                <FiAlertTriangle />
+              </div>
+
+              <div>
+                <span>Needs Review</span>
+
+                <strong>
+                  {analytics.suspiciousTransactions}
+                </strong>
+
+                <p>
+                  Suspicious transactions requiring
+                  monitoring
+                </p>
+              </div>
+            </section>
+          </div>
+
+          {/* RISK SUMMARY */}
+
+          <section className="analytics-panel analytics-summary-panel">
+            <div className="analytics-panel-header">
+              <div>
+                <h3>Risk Analysis Summary</h3>
+                <p>
+                  Current fraud detection classification
+                </p>
+              </div>
+
+              <div className="analytics-panel-icon">
+                <FiShield />
+              </div>
+            </div>
+
+            <RiskProgress
+              title="Safe Transactions"
+              value={analytics.safeTransactions}
+              percentage={safePercentage}
+              type="safe"
+            />
+
+            <RiskProgress
+              title="Suspicious Transactions"
+              value={analytics.suspiciousTransactions}
+              percentage={suspiciousPercentage}
+              type="suspicious"
+            />
+
+            <RiskProgress
+              title="Fraud Transactions"
+              value={analytics.fraudTransactions}
+              percentage={fraudPercentage}
+              type="fraud"
+            />
+          </section>
         </>
       )}
     </div>
   );
 }
 
-function AnalyticsCard({
+/* =========================
+   STAT CARD
+========================= */
+
+function AnalyticsStatCard({
+  type,
   icon,
   title,
   value,
+  description,
 }) {
   return (
-    <div
-      style={{
-        background: "#1c1c1c",
-        border: "2px solid #FFD700",
-        borderRadius: "15px",
-        padding: "30px",
-        textAlign: "center",
-        minHeight: "160px",
-      }}
-    >
+    <div className={`analytics-stat-card ${type}`}>
       <div
-        style={{
-          fontSize: "40px",
-          marginBottom: "15px",
-        }}
+        className={`analytics-stat-icon ${type}`}
       >
         {icon}
       </div>
 
-      <h3
-        style={{
-          color: "#FFD700",
-          marginBottom: "15px",
-        }}
-      >
-        {title}
-      </h3>
+      <div>
+        <span>{title}</span>
+        <strong>{value}</strong>
+        <p>{description}</p>
+      </div>
+    </div>
+  );
+}
 
-      <h1
-        style={{
-          color: "#FFD700",
-          margin: 0,
-        }}
-      >
-        {value}
-      </h1>
+/* =========================
+   PROGRESS
+========================= */
+
+function RiskProgress({
+  title,
+  value,
+  percentage,
+  type,
+}) {
+  const safePercentage = Math.min(
+    Math.max(Number(percentage) || 0, 0),
+    100
+  );
+
+  return (
+    <div className="analytics-progress-item">
+      <div className="analytics-progress-heading">
+        <span>{title}</span>
+
+        <strong>
+          {value}
+          <small>{percentage}%</small>
+        </strong>
+      </div>
+
+      <div className="analytics-progress-track">
+        <div
+          className={`analytics-progress-fill ${type}`}
+          style={{
+            width: `${safePercentage}%`,
+          }}
+        ></div>
+      </div>
     </div>
   );
 }

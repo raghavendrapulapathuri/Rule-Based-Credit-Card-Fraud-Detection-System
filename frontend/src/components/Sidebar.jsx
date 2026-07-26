@@ -1,70 +1,207 @@
-function Sidebar({ activePage, setActivePage }) {
-  const menuStyle = (page) => ({
-    padding: "12px",
-    marginBottom: "8px",
-    borderRadius: "8px",
-    cursor: "pointer",
-    background: activePage === page ? "#FFD700" : "transparent",
-    color: activePage === page ? "#000000" : "#FFFFFF",
-    fontWeight: activePage === page ? "bold" : "normal",
-  });
+import {
+  FiGrid,
+  FiUsers,
+  FiCreditCard,
+  FiRepeat,
+  FiAlertTriangle,
+  FiBarChart2,
+  FiHeadphones,
+  FiShield,
+  FiSettings,
+  FiHelpCircle,
+} from "react-icons/fi";
+
+function Sidebar({
+  activePage,
+  setActivePage,
+  collapsed,
+}) {
+  /* =====================================================
+     MAIN MENU
+  ===================================================== */
+
+  const menuItems = [
+    {
+      id: "dashboard",
+      label: "Dashboard",
+      icon: <FiGrid />,
+    },
+    {
+      id: "users",
+      label: "Customers",
+      icon: <FiUsers />,
+    },
+    {
+      id: "cards",
+      label: "Cards",
+      icon: <FiCreditCard />,
+    },
+    {
+      id: "transactions",
+      label: "Transactions",
+      icon: <FiRepeat />,
+    },
+    {
+      id: "alerts",
+      label: "Fraud Alerts",
+      icon: <FiAlertTriangle />,
+    },
+    {
+      id: "analytics",
+      label: "Analytics",
+      icon: <FiBarChart2 />,
+    },
+  ];
+
+  /* =====================================================
+     SUPPORT MENU
+  ===================================================== */
+
+  const supportItems = [
+    {
+      id: "customer-care",
+      label: "Customer Care",
+      icon: <FiHeadphones />,
+    },
+    {
+      id: "help-center",
+      label: "Help Center",
+      icon: <FiHelpCircle />,
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: <FiSettings />,
+    },
+  ];
+
+  const handlePageChange = (page) => {
+    setActivePage(page);
+  };
 
   return (
-    <div
-      style={{
-        width: "250px",
-        minHeight: "100vh",
-        background: "#343a40",
-        color: "white",
-        padding: "20px",
-      }}
+    <aside
+      className={`sidebar ${
+        collapsed ? "sidebar-collapsed" : ""
+      }`}
     >
-      <h3 style={{ color: "#FFD700" }}>Menu</h3>
+      {/* =================================================
+          BRAND
+      ================================================= */}
 
-      <hr />
+      <div className="sidebar-brand">
+        <div className="brand-logo">
+          <FiShield />
+        </div>
 
-      <p
-        style={menuStyle("dashboard")}
-        onClick={() => setActivePage("dashboard")}
-      >
-        📊 Dashboard
-      </p>
+        <div className="sidebar-brand-text">
+          <h2>FraudShield</h2>
+          <span>PROTECTION CENTER</span>
+        </div>
+      </div>
 
-      <p
-        style={menuStyle("users")}
-        onClick={() => setActivePage("users")}
-      >
-        👤 Users
-      </p>
+      {/* =================================================
+          MAIN MENU
+      ================================================= */}
 
-      <p
-        style={menuStyle("cards")}
-        onClick={() => setActivePage("cards")}
-      >
-        💳 Cards
-      </p>
+      <div className="sidebar-section-title">
+        MAIN MENU
+      </div>
 
-      <p
-        style={menuStyle("transactions")}
-        onClick={() => setActivePage("transactions")}
-      >
-        💰 Transactions
-      </p>
+      <nav className="sidebar-menu">
+        {menuItems.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            title={
+              collapsed
+                ? item.label
+                : undefined
+            }
+            className={`sidebar-item ${
+              activePage === item.id
+                ? "active"
+                : ""
+            }`}
+            onClick={() =>
+              handlePageChange(item.id)
+            }
+          >
+            <span className="sidebar-icon">
+              {item.icon}
+            </span>
 
-      <p
-        style={menuStyle("alerts")}
-        onClick={() => setActivePage("alerts")}
-      >
-        🚨 Fraud Alerts
-      </p>
+            <span className="sidebar-label">
+              {item.label}
+            </span>
 
-      <p
-        style={menuStyle("analytics")}
-        onClick={() => setActivePage("analytics")}
-      >
-        📈 Analytics
-      </p>
-    </div>
+            {item.id === "alerts" && (
+              <span className="alert-badge">
+                !
+              </span>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      {/* =================================================
+          SUPPORT
+      ================================================= */}
+
+      <div className="sidebar-section-title sidebar-support-title">
+        SUPPORT
+      </div>
+
+      <nav className="sidebar-menu">
+        {supportItems.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            title={
+              collapsed
+                ? item.label
+                : undefined
+            }
+            className={`sidebar-item ${
+              activePage === item.id
+                ? "active"
+                : ""
+            }`}
+            onClick={() =>
+              handlePageChange(item.id)
+            }
+          >
+            <span className="sidebar-icon">
+              {item.icon}
+            </span>
+
+            <span className="sidebar-label">
+              {item.label}
+            </span>
+          </button>
+        ))}
+      </nav>
+
+      {/* =================================================
+          SYSTEM STATUS
+      ================================================= */}
+
+      <div className="sidebar-status">
+        <div className="status-indicator">
+          <span className="status-dot"></span>
+
+          <div>
+            <strong>
+              System Secure
+            </strong>
+
+            <p>
+              All systems operational
+            </p>
+          </div>
+        </div>
+      </div>
+    </aside>
   );
 }
 
