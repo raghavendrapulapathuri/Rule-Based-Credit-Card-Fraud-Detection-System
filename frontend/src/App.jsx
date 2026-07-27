@@ -3,6 +3,7 @@ import { useState } from "react";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 
+import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
 import Cards from "./pages/Cards";
@@ -10,29 +11,57 @@ import Transactions from "./pages/Transactions";
 import FraudAlerts from "./pages/FraudAlerts";
 import Analytics from "./pages/Analytics";
 import CustomerCare from "./pages/CustomerCare";
+import HelpCenter from "./pages/HelpCenter";
+import Settings from "./pages/Settings";
+import AdminProfile from "./pages/AdminProfile";
 
 import "./App.css";
 
 function App() {
-  /* =========================
+  /* =====================================================
+     ADMIN AUTHENTICATION
+  ===================================================== */
+
+  const [admin, setAdmin] = useState(() => {
+    const savedAdmin = localStorage.getItem(
+      "fraudshield_admin"
+    );
+
+    if (!savedAdmin) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(savedAdmin);
+    } catch (error) {
+      console.error(
+        "Unable to read saved admin:",
+        error
+      );
+
+      localStorage.removeItem(
+        "fraudshield_admin"
+      );
+
+      return null;
+    }
+  });
+
+  /* =====================================================
      CURRENT PAGE
-  ========================= */
+  ===================================================== */
 
   const [activePage, setActivePage] =
     useState("dashboard");
 
-  /* =========================
-     SIDEBAR STATE
-  ========================= */
+  /* =====================================================
+     SIDEBAR
+  ===================================================== */
 
   const [
     sidebarCollapsed,
     setSidebarCollapsed,
   ] = useState(false);
-
-  /* =========================
-     TOGGLE SIDEBAR
-  ========================= */
 
   const toggleSidebar = () => {
     setSidebarCollapsed(
@@ -40,9 +69,33 @@ function App() {
     );
   };
 
-  /* =========================
+  /* =====================================================
+     LOGIN
+  ===================================================== */
+
+  const handleLogin = (adminData) => {
+    setAdmin(adminData);
+
+    setActivePage("dashboard");
+  };
+
+  /* =====================================================
+     LOGOUT
+  ===================================================== */
+
+  const handleLogout = () => {
+    localStorage.removeItem(
+      "fraudshield_admin"
+    );
+
+    setAdmin(null);
+
+    setActivePage("dashboard");
+  };
+
+  /* =====================================================
      PAGE RENDERING
-  ========================= */
+  ===================================================== */
 
   const renderPage = () => {
     switch (activePage) {
@@ -63,18 +116,38 @@ function App() {
 
       case "analytics":
         return <Analytics />;
+
       case "customer-care":
         return <CustomerCare />;
 
+      case "help-center":
+        return <HelpCenter />;
+
+      case "settings":
+        return <Settings admin={admin} />;
+      case "admin-profile":
+        return <AdminProfile admin={admin} />;
+
       default:
         return <Dashboard />;
-        
     }
   };
 
-  /* =========================
-     APP
-  ========================= */
+  /* =====================================================
+     NOT LOGGED IN
+  ===================================================== */
+
+  if (!admin) {
+    return (
+      <Login
+        onLogin={handleLogin}
+      />
+    );
+  }
+
+  /* =====================================================
+     LOGGED IN APPLICATION
+  ===================================================== */
 
   return (
     <div className="app-shell">
@@ -87,7 +160,7 @@ function App() {
         collapsed={sidebarCollapsed}
       />
 
-      {/* MAIN AREA */}
+      {/* MAIN */}
 
       <div className="app-main">
 
@@ -95,15 +168,19 @@ function App() {
 
         <Navbar
           toggleSidebar={toggleSidebar}
+          setActivePage={setActivePage}
+          admin={admin}
+          onLogout={handleLogout}
         />
 
-        {/* PAGE CONTENT */}
+        {/* PAGE */}
 
         <main className="page-content">
           {renderPage()}
         </main>
 
       </div>
+
     </div>
   );
 }
