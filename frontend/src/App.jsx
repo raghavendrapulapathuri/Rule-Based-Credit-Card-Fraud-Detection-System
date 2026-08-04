@@ -14,6 +14,7 @@ import CustomerCare from "./pages/CustomerCare";
 import HelpCenter from "./pages/HelpCenter";
 import Settings from "./pages/Settings";
 import AdminProfile from "./pages/AdminProfile";
+import CustomerRegister from "./pages/CustomerRegister";
 
 import "./App.css";
 
@@ -137,13 +138,11 @@ function App() {
      NOT LOGGED IN
   ===================================================== */
 
-  if (!admin) {
-    return (
-      <Login
-        onLogin={handleLogin}
-      />
-    );
-  }
+if (!admin) {
+  return (
+    <CustomerRegister />
+  );
+}
 
   /* =====================================================
      LOGGED IN APPLICATION
